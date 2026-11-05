@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
                         names.clear(); names.addAll(nextNames);
                         urls.clear(); urls.addAll(nextUrls);
                         ids.clear(); ids.addAll(nextIds);
-                        if (!ids.contains(prefs.getString("selected_id", "basement"))) loadSelected();
+                        loadSelected();
                     });
                 }
             } catch (Exception ignored) {
