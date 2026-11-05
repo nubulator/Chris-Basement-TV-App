@@ -1,7 +1,8 @@
-
 package com.chrisbasement.tv;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.WindowManager;
@@ -9,45 +10,117 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 
 public class MainActivity extends Activity {
+    private static final String REGISTRY = "https://nubulator.github.io/Chris-basement/dashboards.json";
+    private static final String DEFAULT_URL = "https://nubulator.github.io/Chris-basement/index-v3822.html";
     private WebView webView;
+    private final ArrayList<String> names = new ArrayList<>();
+    private final ArrayList<String> urls = new ArrayList<>();
+    private final ArrayList<String> ids = new ArrayList<>();
+    private SharedPreferences prefs;
+    private boolean menuOpen = false;
 
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        getWindow().addFlags(
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-        );
-
-        getWindow().getDecorView().setSystemUiVisibility(
-            5894 | 1024 | 512
-        );
-
+    @Override public void onCreate(Bundle state) {
+        super.onCreate(state);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().getDecorView().setSystemUiVisibility(5894 | 1024 | 512);
+        prefs = getSharedPreferences("dashboard", MODE_PRIVATE);
+        names.add("Chris' Basement"); urls.add(DEFAULT_URL); ids.add("basement");
         webView = new WebView(this);
         webView.setFocusable(true);
         webView.setFocusableInTouchMode(true);
-
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
-
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient());
-
         setContentView(webView);
-        webView.loadUrl(
-            "https://nubulator.github.io/Chris-basement/index-v3822.html"
-        );
+        loadSelected();
+        refreshRegistry();
     }
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK
-                && webView.canGoBack()) {
-            webView.goBack();
+    private void loadSelected() {
+        String selected = prefs.getString("selected_id", "basement");
+        int index = ids.indexOf(selected);
+        if (index < 0) index = 0;
+        webView.loadUrl(urls.get(index));
+        webView.requestFocus();
+    }
+
+    private void refreshRegistry() {
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection)new URL(REGISTRY + "?t=" + System.currentTimeMillis()).openConnection();
+                connection.setConnectTimeout(8000);
+                connection.setReadTimeout(8000);
+                connection.setUseCaches(false);
+                try (InputStream input = connection.getInputStream(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                    byte[] buf = new byte[4096]; int n;
+                    while ((n = input.read(buf)) != -1) output.write(buf, 0, n);
+                    JSONObject root = new JSONObject(output.toString("UTF-8"));
+                    JSONArray array = root.getJSONArray("dashboards");
+                    ArrayList<String> nextNames = new ArrayList<>(), nextUrls = new ArrayList<>(), nextIds = new ArrayList<>();
+                    for (int i = 0; i < array.length(); i++) {
+                        JSONObject item = array.getJSONObject(i);
+                        String url = item.getString("url");
+                        if (!url.startsWith("https://")) continue;
+                        nextNames.add(item.getString("name"));
+                        nextUrls.add(url);
+                        nextIds.add(item.getString("id"));
+                    }
+                    if (!nextIds.isEmpty()) runOnUiThread(() -> {
+                        names.clear(); names.addAll(nextNames);
+                        urls.clear(); urls.addAll(nextUrls);
+                        ids.clear(); ids.addAll(nextIds);
+                        if (!ids.contains(prefs.getString("selected_id", "basement"))) loadSelected();
+                    });
+                }
+            } catch (Exception ignored) {
+                // Keep the built-in dashboard available while offline.
+            } finally { if (connection != null) connection.disconnect(); }
+        }).start();
+    }
+
+    private void showDashboardMenu() {
+        if (menuOpen) return;
+        menuOpen = true;
+        String[] choices = names.toArray(new String[0]);
+        new AlertDialog.Builder(this)
+            .setTitle("Choose dashboard")
+            .setItems(choices, (dialog, which) -> {
+                prefs.edit().putString("selected_id", ids.get(which)).apply();
+                webView.loadUrl(urls.get(which));
+                webView.requestFocus();
+            })
+            .setNegativeButton("Cancel", (dialog, which) -> {})
+            .setOnDismissListener(dialog -> { menuOpen = false; webView.requestFocus(); })
+            .show();
+    }
+
+    @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_BUTTON_START) {
+            showDashboardMenu();
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // Give dashboard overlays a chance to close before navigating away.
+            webView.evaluateJavascript(
+                "(function(){var x=document.querySelector('.radar-modal.open,.radar-overlay.open,[role=dialog],.modal.show');" +
+                "if(x){var b=x.querySelector('button[aria-label=Close],.close,button.close');if(b)b.click();else x.style.display='none';return true;}return false;})()",
+                result -> {
+                    if (!"true".equals(result)) showDashboardMenu();
+                });
             return true;
         }
         return super.onKeyDown(keyCode, event);
