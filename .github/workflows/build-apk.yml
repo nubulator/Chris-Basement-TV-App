@@ -28,6 +28,15 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Render neon Fire TV launcher artwork
+        run: |
+          python -m pip install cairosvg
+          python - <<'PY'
+          import cairosvg
+          cairosvg.svg2png(url='artwork/firetv-banner.svg',write_to='app/src/main/res/drawable/tv_banner.png',output_width=320,output_height=180)
+          cairosvg.svg2png(url='artwork/firetv-icon.svg',write_to='app/src/main/res/drawable/tv_icon.png',output_width=256,output_height=256)
+          PY
+
       - name: Build Fire TV APK
         run: gradle assembleDebug --stacktrace
 
