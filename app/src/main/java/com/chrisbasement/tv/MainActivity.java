@@ -114,10 +114,12 @@ public class MainActivity extends Activity {
             return true;
         }
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            // Give dashboard overlays a chance to close before navigating away.
             webView.evaluateJavascript(
-                "(function(){var x=document.querySelector('.radar-modal.open,.radar-overlay.open,[role=dialog],.modal.show');" +
-                "if(x){var b=x.querySelector('button[aria-label=Close],.close,button.close');if(b)b.click();else x.style.display='none';return true;}return false;})()",
+                "(function(){var modal=document.getElementById('radarModal');" +
+                "if(modal&&modal.classList.contains('open')){" +
+                "if(typeof closeRadar==='function')closeRadar();" +
+                "else modal.classList.remove('open');return true;}" +
+                "return false;})()",
                 result -> {
                     if (!"true".equals(result)) showDashboardMenu();
                 });
