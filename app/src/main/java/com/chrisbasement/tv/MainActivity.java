@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.WindowManager;
 import android.webkit.WebChromeClient;
@@ -27,6 +29,8 @@ public class MainActivity extends Activity {
     private final ArrayList<String> ids = new ArrayList<>();
     private SharedPreferences prefs;
     private boolean menuOpen = false;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private int backRequestId = 0;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -114,15 +118,33 @@ public class MainActivity extends Activity {
             return true;
         }
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            webView.evaluateJavascript(
-                "(function(){var modal=document.getElementById('radarModal');" +
-                "if(modal&&modal.classList.contains('open')){" +
-                "if(typeof closeRadar==='function')closeRadar();" +
-                "else modal.classList.remove('open');return true;}" +
-                "return false;})()",
-                result -> {
-                    if (!"true".equals(result)) showDashboardMenu();
-                });
+            // The embedded radar can intercept navigation; never let a stalled
+            // WebView JavaScript callback prevent the dashboard picker opening.
+            final int requestId = ++backRequestId;
+            uiHandler.postDelayed(() -> {
+                if (requestId == backRequestId && !menuOpen) {
+                    backRequestId++;
+                    showDashboardMenu();
+                }
+            }, 500);
+            try {
+                webView.evaluateJavascript(
+                    "(function(){var modal=document.getElementById('radarModal');" +
+                    "if(modal&&modal.classList.contains('open')){" +
+                    "if(typeof closeRadar==='function')closeRadar();" +
+                    "else modal.classList.remove('open');return true;}" +
+                    "return false;})()",
+                    result -> {
+                        if (requestId != backRequestId) return;
+                        backRequestId++;
+                        if (!"true".equals(result)) showDashboardMenu();
+                    });
+            } catch (Exception ignored) {
+                if (requestId == backRequestId) {
+                    backRequestId++;
+                    showDashboardMenu();
+                }
+            }
             return true;
         }
         return super.onKeyDown(keyCode, event);
