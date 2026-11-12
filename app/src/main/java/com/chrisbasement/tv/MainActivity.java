@@ -118,6 +118,16 @@ public class MainActivity extends Activity {
             return true;
         }
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // Holding Back must not leave the Game Room after returning there.
+            if (event.getRepeatCount() > 0) return true;
+            if (GameRoomNavigation.isGame(webView.getUrl())) {
+                // Cancel any pending picker fallback and route natively, even
+                // when a game has replaced its history or JavaScript is busy.
+                backRequestId++;
+                webView.loadUrl(GameRoomNavigation.HOME_URL);
+                webView.requestFocus();
+                return true;
+            }
             // The embedded radar can intercept navigation; never let a stalled
             // WebView JavaScript callback prevent the dashboard picker opening.
             final int requestId = ++backRequestId;
@@ -150,3 +160,4 @@ public class MainActivity extends Activity {
         return super.onKeyDown(keyCode, event);
     }
 }
+

@@ -15,8 +15,20 @@ Open this folder in Android Studio with Android SDK 35 and Java 17, let Gradle s
 
 ## Controls
 - Fire TV directional/select remote controls navigate the website where supported by the page.
-- Press Play/Pause to refresh the dashboard.
-- Back navigates within the app's WebView history or exits the app.
+- Back from a Game Room game returns directly to Chris's Game Room, including Bernie Bernie after its redirect. Holding Back does not also open the dashboard picker.
+- Back on a dashboard closes an expanded radar first; otherwise it opens Choose dashboard. Back from the Game Room landing page also opens Choose dashboard.
+- The Menu button (three horizontal lines) opens Choose dashboard from any page.
+
+## Version 2.1
+This APK changes the native remote Back behavior. Install the new APK on the Fire TV to receive this fix; refreshing the website alone cannot update the installed app's key handling. No game records or website content are changed.
+
+### Navigation regression check (Java 17 or newer)
+```sh
+javac --release 17 -d build/navigation-test app/src/main/java/com/chrisbasement/tv/GameRoomNavigation.java tests/GameRoomNavigationTest.java
+java -cp build/navigation-test com.chrisbasement.tv.GameRoomNavigationTest
+```
+
+On a Fire TV, open each game from the Game Room and press Back once, then test holding Back. Both should leave the Game Room visible. Check that Menu still opens the dashboard picker and Back still closes expanded radar on the dashboard.
 
 ## Dashboard updates
 This version loads `https://nubulator.github.io/Chris-basement/index-v3822.html`. To update to a new numbered HTML page, change `DASHBOARD_URL` in `app/src/main/java/com/chrisbasement/tv/MainActivity.java` and rebuild the APK. For future no-reinstall updates, point this constant at a stable URL such as `https://nubulator.github.io/Chris-basement/index.html` and update that HTML file in the existing dashboard repo. Do not switch until that stable URL exists.
@@ -24,4 +36,5 @@ This version loads `https://nubulator.github.io/Chris-basement/index-v3822.html`
 ## Notes
 - The app requires internet access and relies on Fire TV's Android System WebView, which may behave differently from Silk. Test live scores, radar, and remote selection on the actual device.
 - This is a private, sideloadable debug APK, not a published Amazon Appstore release.
-- The build workflow is included, but the APK has not been compiled or tested in this environment.
+- GitHub Actions compiles the APK. Remote-button behavior still needs a check on the actual Fire TV after installation.
+
