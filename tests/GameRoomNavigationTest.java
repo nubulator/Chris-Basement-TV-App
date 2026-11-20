@@ -13,7 +13,7 @@ public final class GameRoomNavigationTest {
 
     public static void main(String[] args) {
         String base = "https://nubulator.github.io/Chris-basement/";
-        for (String game : new String[]{"kings", "euchre", "trivia", "music", "survey", "casino", "last-call", "bernie"}) {
+        for (String game : new String[]{"kings", "euchre", "trivia", "music", "survey", "casino", "last-call", "bernie", "house-rules", "test-games"}) {
             expect(true, base + game + ".html");
             expect(true, base + game + ".html?refresh=123#setup");
         }
