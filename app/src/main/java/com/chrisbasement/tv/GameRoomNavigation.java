@@ -29,6 +29,8 @@ final class GameRoomNavigation {
                 case "/Chris-basement/casino.html":
                 case "/Chris-basement/last-call.html":
                 case "/Chris-basement/bernie.html":
+                case "/Chris-basement/house-rules.html":
+                case "/Chris-basement/test-games.html":
                     return true;
                 default:
                     return false;
